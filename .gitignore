@@ -1,0 +1,15 @@
+__pycache__/
+*.pyc
+.env
+.venv/
+venv/
+build/
+dist/
+*.egg-info/
+.aws/
+.npx/
+.cache/
+node_modules/
+graphify-out/
+.~lock.*#
+~$*.xlsx
