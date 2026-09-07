@@ -1,0 +1,1 @@
+CREATE INDEX IF NOT EXISTS idx_fact_ventas_fecha ON fact_ventas (fecha);

@@ -1,0 +1,6 @@
+CREATE TABLE IF NOT EXISTS dim_tiempo (
+    fecha DATE PRIMARY KEY,
+    anio INTEGER NOT NULL,
+    trimestre INTEGER NOT NULL,
+    mes INTEGER NOT NULL
+);

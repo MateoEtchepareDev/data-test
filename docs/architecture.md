@@ -23,8 +23,8 @@ El proyecto cubre el ciclo completo de un flujo de datos: **ingesta → validaci
 
 ### 2.2 De datos
 
-- Debe existir un identificador de transacción/ticket para no confundir línea de venta con ticket al calcular el Ticket Promedio.
-- Cada producto debe tener precio de venta y costo asociado, para calcular el Margen Bruto.
+- Debe existir un identificador de transacción/ticket para calcular el Ticket Promedio sin confundir filas. En el origen real cada ticket trae una única línea de producto, por lo que el grano de `fact_ventas` es por ticket (`nro_venta` único).
+- Cada producto debe tener costo asociado y cada venta su precio de venta real, para calcular el Margen Bruto. El origen no trae precio de catálogo; el margen usa `precio_unitario` del hecho contra `costo` del producto.
 - Cada sucursal debe tener una provincia asociada, para el análisis geográfico.
 - Las fechas deben normalizarse a un formato único que permita derivar año/trimestre/mes.
 
@@ -398,7 +398,6 @@ Documenta el "por qué" del esquema que implementan las migraciones en `packages
                     │ id_producto (PK)  │
                     │ nombre_producto   │
                     │ categoria         │
-                    │ precio_venta      │
                     │ costo             │
                     └────────┬─────────┘
                              │
@@ -420,14 +419,12 @@ Documenta el "por qué" del esquema que implementan las migraciones en `packages
                     ┌───────────────────────────────┐
                     │        fact_ventas             │
                     ├───────────────────────────────┤
-                    │ id_ticket                      │
-                    │ id_linea                       │
+                    │ id_ticket (PK, from nro_venta) │
                     │ fecha (FK → dim_tiempo)         │
                     │ id_sucursal (FK → dim_sucursal) │
                     │ id_producto (FK → dim_producto) │
                     │ cantidad                        │
                     │ precio_unitario                 │
-                    │ PK: (id_ticket, id_linea)        │
                     └───────────────────────────────┘
 ```
 
@@ -435,30 +432,34 @@ Documenta el "por qué" del esquema que implementan las migraciones en `packages
 
 ## 2. Grano de `fact_ventas`
 
-**Una fila por línea de venta, no por ticket.** Un ticket con 3 productos distintos genera 3 filas en `fact_ventas`, todas compartiendo `id_ticket` pero con `id_linea` distinto.
+**Una fila por ticket/venta completa, no por línea de producto.** El origen real (`Hechos_Ventas`) trae una fila por venta con un único producto y su cantidad: `nro_venta` es único. Un ticket con N productos generarían N filas que comparten `id_ticket` — pero ese caso no existe en el dataset actual.
 
-Esto es intencional y deriva directamente del requisito de datos 2.2: *"Debe existir un identificador de transacción/ticket para no confundir línea de venta con ticket al calcular el Ticket Promedio."* Si el grano fuera por ticket, se perdería la posibilidad de calcular Ventas Totales o Margen Bruto por producto individual dentro de un ticket. Si fuera por producto sin trazabilidad al ticket, se perdería la posibilidad de calcular Ticket Promedio correctamente (que requiere `SUM(cantidad * precio_unitario) / COUNT(DISTINCT id_ticket)`, no `COUNT(*)` de filas).
+Esto deriva del requisito de datos 2.2: *"Debe existir un identificador de transacción/ticket para no confundir línea de venta con ticket al calcular el Ticket Promedio."* Con grano por ticket, `COUNT(DISTINCT id_ticket)` es equivalente a `COUNT(*)`, y el Ticket Promedio por sucursal se calcula como `SUM(cantidad * precio_unitario) / COUNT(*)` agrupado por sucursal.
 
-**Clave primaria:** `(id_ticket, id_linea)`. Es la misma clave natural del contrato de datos (`data-contract.md` §2), no una clave sustituta inventada — mantiene trazabilidad directa al Excel de origen, lo cual ayuda a debuggear discrepancias.
+**Clave primaria:** `id_ticket` (natural, mapea 1:1 a `nro_venta` del Excel). Es la misma clave natural del contrato de datos (`data-contract.md` §2), no una clave sustituta inventada — mantiene trazabilidad directa al Excel de origen, lo cual ayuda a debuggear discrepancias y habilita el UPSERT idempotente de `data-contract.md` §6.
+
+> Si en el futuro el Excel cambia a grano por línea (varias filas por `nro_venta` con `id_linea`), el PK pasaría a `(id_ticket, id_linea)` — un cambio contenido en `005_create_fact_ventas.sql` y en el contrato.
 
 ---
 
 ## 3. Dimensiones
 
 ### `dim_producto`
-Incluye `precio_venta` y `costo` directamente en la dimensión (no en una tabla de precios separada con vigencia temporal), porque el alcance del proyecto no requiere modelar cambios de precio en el tiempo — es una dimensión de tipo 1 (sobrescritura), no tipo 2 (historización). Si en el futuro se necesitara analizar margen histórico ante cambios de precio, esto pasaría a ser una Slowly Changing Dimension tipo 2, pero eso está fuera del alcance actual (`architecture.md` §2.3 no lo menciona como requisito).
+Incluye `costo` en la dimensión (no en una tabla de precios separada con vigencia temporal) porque el alcance del proyecto no requiere modelar cambios de costos en el tiempo — es una dimensión de tipo 1 (sobrescritura), no tipo 2 (historización). Si en el futuro se necesitara analizar margen histórico ante cambios de costo, esto pasaría a ser una Slowly Changing Dimension tipo 2, pero eso está fuera del alcance actual.
 
-`costo` y `precio_venta` viven acá y no en `fact_ventas` porque son atributos del producto, no de la transacción — `precio_unitario` en el hecho captura el precio real de venta (que puede diferir por descuento), mientras que `dim_producto.precio_venta` es el precio de catálogo. Esta distinción es la misma que ya señala `data-contract.md` §2.
+El origen no trae precio de catálogo (`precio_venta`), solo `costo` y el `precio_unitario` de cada venta. Por eso `dim_producto` guarda únicamente el costo y `fact_ventas.precio_unitario` captura el precio real de venta (que puede diferir por descuento). El Margen Bruto se calcula como `cantidad * (precio_unitario - costo)`.
 
 ### `dim_sucursal` y `dim_provincia`
 Separadas en dos tablas (en vez de una sola `dim_sucursal` con columna `provincia` de texto libre) para evitar inconsistencias de nombre de provincia entre sucursales distintas (ej. "Buenos Aires" vs. "BUENOS AIRES" en dos filas). `dim_provincia` normaliza el nombre una sola vez; `dim_sucursal` referencia por `id_provincia`. El mapeo de equivalencias mencionado como pendiente en `data-contract.md` §4 se resuelve al momento de poblar `dim_provincia`, no dispersándolo en cada fila de `dim_sucursal`.
 
 Alternativa descartada: desnormalizar `provincia` directo en `dim_sucursal` sin tabla separada. Se descarta porque el requisito 2.2 pide análisis geográfico por provincia como agregación (mapa coroplético), y una tabla `dim_provincia` separada facilita ese `JOIN` y la carga del GeoJSON sin depender de que el texto de provincia esté escrito idénticamente en cada fila de sucursal.
 
+`dim_sucursal.nombre_sucursal` se nutre de la columna `ciudad` del origen (`Dim_Sucursal.ciudad`); la columna `tipo` (Centro/Shopping/Barrio) no se carga por no tener uso en los KPIs definidos.
+
 ### `dim_tiempo`
 Tabla de fechas explícita (no calcular año/trimestre/mes con funciones SQL en cada consulta) porque el requisito 2.2 pide explícitamente que las fechas *"se normalicen a un formato único que permita derivar año/trimestre/mes"* — materializar esa derivación en una dimensión evita repetir `EXTRACT(QUARTER FROM fecha)` en cada query analítica (`top 5 productos del último trimestre de 2024`, `evolución mensual`) y hace esas consultas más legibles, coherente con el criterio de "SQL directo y legible" ya adoptado para el resto del proyecto.
 
-Clave primaria: `fecha` (tipo `DATE`), no un `id_tiempo` sustituto — no hay necesidad de una superclave numérica cuando la fecha en sí ya es única y ordenable.
+Clave primaria: `fecha` (tipo `DATE`), no un `id_tiempo` sustituto — no hay necesidad de una superclave numérica cuando la fecha en sí ya es única y ordenable. El origen ya trae un calendario materializado (`Dim_Tiempo` con `id_fecha`, `fecha`, `mes`, `trimestre`, `anio`); el ETL resuelve `Hechos_Ventas.id_fecha → fecha` y carga directamente las derivaciones de origen (no vuelve a calcularlas de cero, solo las valida contra `fecha`). El `id_fecha` origen es un surrogado que no se persiste.
 
 ---
 
@@ -468,7 +469,7 @@ Clave primaria: `fecha` (tipo `DATE`), no un `id_tiempo` sustituto — no hay ne
 |---|---|---|
 | Ventas Totales | `fact_ventas` | `SUM(cantidad * precio_unitario)` |
 | Cantidad Vendida | `fact_ventas` | `SUM(cantidad)` |
-| Ticket Promedio por sucursal | `fact_ventas`, `dim_sucursal` | `SUM(cantidad * precio_unitario) / COUNT(DISTINCT id_ticket)`, agrupado por `id_sucursal` — **requiere el grano por línea explicado en §2**, de lo contrario este cálculo da mal. |
+| Ticket Promedio por sucursal | `fact_ventas`, `dim_sucursal` | `SUM(cantidad * precio_unitario) / COUNT(*)`, agrupado por `id_sucursal`. Con el grano por ticket de §2, `COUNT(*)` == `COUNT(DISTINCT id_ticket)`. |
 | Margen Bruto | `fact_ventas`, `dim_producto` | `SUM(cantidad * (precio_unitario - costo))` — usa `costo` de `dim_producto`, no de `fact_ventas`. |
 | Top 5 productos, último trimestre 2024 | `fact_ventas`, `dim_producto`, `dim_tiempo` | Filtro `dim_tiempo.anio = 2024 AND dim_tiempo.trimestre = 4`, agrupado por producto, ordenado por ventas o cantidad. |
 | Provincia con mayor volumen | `fact_ventas`, `dim_sucursal`, `dim_provincia` | `JOIN` de las tres tablas, `GROUP BY dim_provincia.nombre_provincia`. |
@@ -487,15 +488,15 @@ El orden de `packages/shared/migrations/` sigue la dependencia de claves foráne
 2. `002_create_dim_producto.sql` — no depende de otras dimensiones.
 3. `003_create_dim_tiempo.sql` — no depende de otras dimensiones.
 4. `004_create_dim_sucursal.sql` — depende de `dim_provincia` (FK `id_provincia`).
-5. `005_create_fact_ventas.sql` — al final, porque referencia a las cuatro dimensiones anteriores.
-6. `006_add_ticket_id_constraint.sql` — constraint adicional sobre `fact_ventas` (ej. índice sobre `id_ticket` para acelerar el cálculo de Ticket Promedio, que agrupa por ticket).
+5. `005_create_fact_ventas.sql` — al final, porque referencia a las cuatro dimensiones anteriores. `id_ticket` es PK natural (grano por ticket, ver §2).
+6. `006_add_fact_ventas_fecha_index.sql` — índice sobre `fact_ventas.fecha`: acelera las consultas que unen por `dim_tiempo` (evolución mensual). El PK de `fact_ventas` (`id_ticket`) ya trae su propio índice.
 
 ---
 
 ## 6. Pendiente de completar
 
-- Confirmar tipos de dato exactos por columna (`NUMERIC(12,2)` vs. `DOUBLE PRECISION` para montos, por ejemplo) al escribir el DDL real en las migraciones.
-- Definir si `dim_producto.categoria` debe normalizarse a su propia tabla `dim_categoria` (actualmente es texto plano en `dim_producto`) — se mantiene como texto por ahora porque el alcance no pide jerarquía de categorías, solo agrupar por categoría existente.
+- ~~Confirmar tipos de dato exactos por columna~~ → **Resuelto en Fase 1** contra el archivo real: `NUMERIC(12,2)` para montos (`costo`, `precio_unitario`), `INTEGER` para ids/cantidad/año/trimestre/mes, `VARCHAR` para cadenas. Reflejado en `packages/shared/migrations/`.
+- `dim_producto.categoria` se mantiene como texto plano (sin `dim_categoria` aparte) porque el alcance no pide jerarquía de categorías, solo agrupar por categoría existente.
 
 
 

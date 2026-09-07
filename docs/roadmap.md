@@ -6,7 +6,7 @@ Bloqueantes de Fase 1 (no se avanza sin esto):
 
 - **Supabase activo + connection string pooled** (Supavisor, puerto 6543). Sin proyecto levantado → no se puede correr migraciones ni desarrollarse nada.
 - **Entorno Python local**: venv con dependencias de `shared` (`psycopg2-binary` para Python 3.14) y `pytest`. Python local actual: 3.14.5.
-- **Tipos de dato por columna definidos** (pendiente de `architecture.md` §6): default a confirmar — `NUMERIC(12,2)` para montos, `INT` donde el Excel traiga ints, `VARCHAR` para ids/cadenas.
+- **Tipos de dato por columna — definidos en Fase 1** contra el archivo real: `NUMERIC(12,2)` para montos, `INTEGER` para ids/cantidad/fechas derivadas, `VARCHAR` para cadenas (ver `architecture.md` §6).
 
 No requerido hasta fases posteriores: cuenta AWS, Secrets Manager, GeoJSON (Fase 4), pandas/openpyxl (Fase 2).
 
@@ -20,16 +20,16 @@ No requerido hasta fases posteriores: cuenta AWS, Secrets Manager, GeoJSON (Fase
 
 ## Fase 1 — `packages/shared` + migraciones
 
-- Migraciones `001`..`006` con DDL real (provincia, producto, tiempo, sucursal, fact_ventas, índice id_ticket), en el orden FK-safe documentado en `architecture.md` §5.
+- Migraciones `001`..`006` con DDL real (provincia, producto, tiempo, sucursal, fact_ventas, índice `fecha`), en el orden FK-safe documentado en `architecture.md` §5.
 - `migrate.py` (runner que aplica pendientes en orden), `db.py` (conexión pooled, puerto 6543), `schema.py` (nombres de tablas/columnas).
 - Tests: `test_db.py`.
 - **Hito verificable #1** — esquema estrella levantado en Supabase. El readme empieza a llenarse acá.
 
 ## Fase 2 — ETL (`services/etl`)
 
-- `extract.py`: lee `data/ventas.xlsx`, hojas `Ventas`, `Productos`, `Sucursales`.
-- `validate.py`: contrato de `data-contract.md` — hojas/columnas faltantes, tipos, nulos, duplicados `(id_ticket, id_linea)`, integridad referencial, `cantidad > 0`, umbral de aborto 5%.
-- `transform.py`: fecha `DD/MM/YYYY` → ISO 8601 + derivación año/trimestre/mes; normalización de provincias (incluye `Cordoba` → `Córdoba`).
+- `extract.py`: lee `data/ventas.xlsx`, hojas `Hechos_Ventas`, `Dim_Producto`, `Dim_Sucursal`, `Dim_Tiempo`.
+- `validate.py`: contrato de `data-contract.md` — hojas/columnas faltantes, tipos, nulos, duplicados `nro_venta`, integridad referencial (`id_fecha`/`id_producto`/`id_sucursal`), `cantidad > 0`, umbral de aborto 5%.
+- `transform.py`: resolución `id_fecha → fecha` y validación de año/trimestre/mes derivados; normalización de provincias (mapa identidad de `data-contract.md` §4).
 - `load.py`: UPSERT idempotente en `fact_ventas` + carga de dimensiones.
 - `main.py`: orquestación migrate → extract → validate → transform → load.
 - Tests: `test_validate.py`, `test_transform.py`, fixtures.
