@@ -158,6 +158,20 @@ def test_categoria_mas_rentable(client, monkeypatch):
     assert resp.get_json() == {"categoria": "Bebidas", "margen": 123.46}
 
 
+def test_margen_por_categoria(client, monkeypatch):
+    rows = [
+        {"categoria": "Bebida", "margen": Decimal("4732.27")},
+        {"categoria": "Comida", "margen": Decimal("4299.27")},
+    ]
+    monkeypatch.setattr(analytics_sql, "margen_por_categoria", lambda conn: rows)
+    resp = client.get("/analytics/margen-por-categoria")
+    assert resp.status_code == 200
+    assert resp.get_json() == [
+        {"categoria": "Bebida", "margen": 4732.27},
+        {"categoria": "Comida", "margen": 4299.27},
+    ]
+
+
 def test_evolucion_mensual(client, monkeypatch):
     rows = [
         {"anio": 2024, "mes": 1, "ventas": Decimal("100.0")},

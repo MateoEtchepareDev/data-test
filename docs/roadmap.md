@@ -15,7 +15,7 @@ No requerido hasta fases posteriores: cuenta AWS, Secrets Manager, GeoJSON (Fase
 - `pyproject.toml` por servicio: `etl` = pandas, openpyxl, psycopg2; `api` = flask, mangum, psycopg2; `shared` = psycopg2. `requires-python >=3.12`.
 - Dev DB = Supabase real (directo, sin Docker). Correr migraciones contra ella desde el arranque. Sin Supabase disponible abajo → no se avanza.
 - Conexión siempre pooled (Supavisor 6543), tanto en dev como en Lambda.
-- GeoJSON público: `andresgnlez/argentina-geojson` (`argentina/provincias.json`) — **verificar** que `properties.name` sea `"Córdoba"` acentuado; si no, probar `mgaitan/argentina-mapas`. El nombre normalizado de `Cordoba→Córdoba` depende del match real (validar en Fase 4).
+- GeoJSON público: repos originales (`andresgnlez/argentina-geojson`, `mgaitan/argentina-mapas`) **ya no existen** (404). Reemplazo usado en Fase 4: `alvarezgarcia/provincias-argentinas-geojson` (un archivo por provincia, ~192 KB en total), fusionado en `frontend/data/geo/provincias.json`. Validado: `properties.name` viene sin acentos (`Cordoba`) → normalizado en la fusión a `Córdoba` para matchear `dim_provincia` exactamente.
 - Tests: pytest. Dev: `flask run` local; Lambda recién en Fase 5.
 
 ## Fase 1 — `packages/shared` + migraciones
@@ -39,20 +39,21 @@ No requerido hasta fases posteriores: cuenta AWS, Secrets Manager, GeoJSON (Fase
 
 - `app.py`: Flask + Mangum + CORS + Cache-Control.
 - `routes/kpis.py`: ventas totales, cantidad vendida, ticket promedio, margen bruto — con filtro por período donde aplique.
-- `routes/analytics.py`: top 5 productos Q4-2024, provincia con mayor volumen, categoría más rentable, evolución mensual.
+- `routes/analytics.py`: top 5 productos Q4-2024, provincia con mayor volumen, categoría más rentable, margen por categoría, evolución mensual.
 - `queries/kpis_sql.py` + `analytics_sql.py`: SQL directo, sin ORM. Cada query mapea a una fila de la tabla §4 del modelo dimensional.
 - Tests: `test_routes.py`.
 - **Hito verificable #3** — API completa servida como JSON (`curl`).
 
-## Fase 4 — Frontend
+## Fase 4 — Frontend ✅
 
-- `index.html` + `css/styles.css`: layout del dashboard.
-- `js/api.js`: capa fetch con `cache: 'reload'`, consume **solo** la API.
-- `js/kpis.js`: tarjetas de KPIs.
-- `js/chart-lineas.js`: evolución mensual (Chart.js).
-- `js/chart-barras.js`: rentabilidad por categoría (Chart.js).
-- `js/mapa.js` + `data/geo/provincias.json`: mapa coroplético por provincia (Leaflet).
-- **Hito verificable #4** — dashboard funcional contra API local, sin acceso directo a la base.
+- [x] `index.html` + `css/styles.css`: layout del dashboard (tarjetas KPI + grilla de paneles; Chart.js/Leaflet vía CDN).
+- [x] `js/api.js`: capa fetch con `cache: 'reload'`, consume **solo** la API (`API_BASE` sobreescribible vía `window.API_BASE`).
+- [x] `js/kpis.js`: tarjetas de KPIs (ventas, cantidad, margen, ticket promedio por sucursal) + tabla top 5 productos.
+- [x] `js/chart-lineas.js`: evolución mensual (Chart.js).
+- [x] `js/chart-barras.js`: rentabilidad por categoría (Chart.js, `/analytics/margen-por-categoria`).
+- [x] `js/mapa.js` + `data/geo/provincias.json`: mapa por provincia (Leaflet), destaca la provincia con mayor volumen.
+- [x] Botón "Actualizar datos": recarga todos los endpoints sin cambios de código.
+- **Hito verificable #4 (alcanzado)** — dashboard funcional contra API local, sin acceso directo a la base (verificado con Playwright: valores exactos, charts, mapa, sin errores de consola, refresh re-consumiendo la API).
 
 ## Fase 5 — Infra y deploy
 

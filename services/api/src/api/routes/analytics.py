@@ -25,6 +25,17 @@ def top_productos():
     ]
 
 
+@bp.get("/margen-por-categoria")
+@api_error_handler
+def margen_por_categoria():
+    with connect() as conn:
+        rows = analytics_sql.margen_por_categoria(conn)
+    return [
+        {"categoria": row["categoria"], "margen": _num(row["margen"])}
+        for row in rows
+    ]
+
+
 @bp.get("/provincia-mayor-volumen")
 @api_error_handler
 def provincia_mayor_volumen():

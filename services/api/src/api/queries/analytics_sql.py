@@ -26,6 +26,20 @@ def top_productos(conn, anio=None, trimestre=None, limit=5):
         return cur.fetchall()
 
 
+def margen_por_categoria(conn):
+    sql = (
+        f"SELECT p.categoria, "
+        f"SUM(fv.cantidad * (fv.precio_unitario - p.costo)) AS margen "
+        f"FROM {TABLE_FACT_VENTAS} AS fv "
+        f"JOIN {TABLE_DIM_PRODUCTO} AS p ON fv.id_producto = p.id_producto "
+        f"GROUP BY p.categoria "
+        f"ORDER BY margen DESC"
+    )
+    with conn.cursor(cursor_factory=RealDictCursor) as cur:
+        cur.execute(sql)
+        return cur.fetchall()
+
+
 def provincia_mayor_volumen(conn):
     sql = (
         f"SELECT pr.nombre_provincia AS provincia, "

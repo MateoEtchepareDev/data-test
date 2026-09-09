@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Dashboard de Ventas — CoffeeTime</title>
+  <link rel="stylesheet" href="css/styles.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css">
+</head>
+<body>
+  <header class="page-header">
+    <div class="page-header__inner">
+      <div>
+        <h1>Dashboard de Ventas</h1>
+        <p class="subtitle">CoffeeTime — datos del período 2024 · consumidos vía API</p>
+      </div>
+      <button id="btn-refresh" class="btn" type="button">Actualizar datos</button>
+    </div>
+  </header>
+
+  <main class="layout">
+    <section class="kpi-grid" aria-label="Indicadores clave">
+      <article class="card kpi" id="kpi-ventas">
+        <h2 class="kpi__label">Ventas totales</h2>
+        <p class="kpi__value">—</p>
+      </article>
+      <article class="card kpi" id="kpi-cantidad">
+        <h2 class="kpi__label">Cantidad vendida</h2>
+        <p class="kpi__value">—</p>
+      </article>
+      <article class="card kpi" id="kpi-margen">
+        <h2 class="kpi__label">Margen bruto</h2>
+        <p class="kpi__value">—</p>
+      </article>
+      <article class="card kpi" id="kpi-ticket">
+        <h2 class="kpi__label">Ticket promedio por sucursal</h2>
+        <ul class="kpi__list"></ul>
+      </article>
+    </section>
+
+    <section class="chart-grid" aria-label="Análisis">
+      <article class="card panel">
+        <h2 class="panel__title">Evolución mensual de ventas</h2>
+        <div class="chart-box"><canvas id="chart-lineas"></canvas></div>
+      </article>
+      <article class="card panel">
+        <h2 class="panel__title">Top 5 productos — Q4 2024</h2>
+        <table class="table" id="top-productos">
+          <thead>
+            <tr><th>#</th><th>Producto</th><th class="num">Ventas</th></tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </article>
+      <article class="card panel">
+        <h2 class="panel__title">Margen bruto por categoría</h2>
+        <div class="chart-box"><canvas id="chart-barras"></canvas></div>
+      </article>
+      <article class="card panel">
+        <h2 class="panel__title">Provincia con mayor volumen</h2>
+        <div id="mapa" class="mapa"></div>
+      </article>
+    </section>
+  </main>
+
+  <footer class="page-footer">Pipeline: Excel → ETL → Supabase → API REST → Dashboard</footer>
+
+  <script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script src="js/api.js"></script>
+  <script src="js/kpis.js"></script>
+  <script src="js/chart-lineas.js"></script>
+  <script src="js/chart-barras.js"></script>
+  <script src="js/mapa.js"></script>
+  <script>
+    document.getElementById("btn-refresh").addEventListener("click", () => Dash.refresh());
+    document.addEventListener("DOMContentLoaded", () => Dash.refresh());
+  </script>
+</body>
+</html>
