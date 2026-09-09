@@ -1,0 +1,16 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "api"
+version = "0.1.0"
+description = "API: KPIs y consultas analíticas del modelo dimensional en Supabase"
+requires-python = ">=3.12"
+dependencies = ["flask>=3.0", "mangum>=0.17", "psycopg2-binary>=2.9.10"]
+
+[project.optional-dependencies]
+dev = ["pytest"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
