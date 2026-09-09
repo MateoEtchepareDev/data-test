@@ -25,15 +25,15 @@ No requerido hasta fases posteriores: cuenta AWS, Secrets Manager, GeoJSON (Fase
 - Tests: `test_db.py`.
 - **Hito verificable #1** — esquema estrella levantado en Supabase. El readme empieza a llenarse acá.
 
-## Fase 2 — ETL (`services/etl`)
+## Fase 2 — ETL (`services/etl`) ✅
 
-- `extract.py`: lee `data/ventas.xlsx`, hojas `Hechos_Ventas`, `Dim_Producto`, `Dim_Sucursal`, `Dim_Tiempo`.
-- `validate.py`: contrato de `data-contract.md` — hojas/columnas faltantes, tipos, nulos, duplicados `nro_venta`, integridad referencial (`id_fecha`/`id_producto`/`id_sucursal`), `cantidad > 0`, umbral de aborto 5%.
-- `transform.py`: resolución `id_fecha → fecha` y validación de año/trimestre/mes derivados; normalización de provincias (mapa identidad de `data-contract.md` §4).
-- `load.py`: UPSERT idempotente en `fact_ventas` + carga de dimensiones.
-- `main.py`: orquestación migrate → extract → validate → transform → load.
-- Tests: `test_validate.py`, `test_transform.py`, fixtures.
-- **Hito verificable #2** — carga completa y re-ejecutable sin duplicar.
+- [x] `extract.py`: lee `data/ventas.xlsx`, hojas `Hechos_Ventas`, `Dim_Producto`, `Dim_Sucursal`, `Dim_Tiempo`.
+- [x] `validate.py`: contrato de `data-contract.md` — hojas/columnas faltantes, tipos, nulos, duplicados `nro_venta`, integridad referencial (`id_fecha`/`id_producto`/`id_sucursal`), `cantidad > 0`, umbral de aborto 5%.
+- [x] `transform.py`: resolución `id_fecha → fecha` y validación de año/trimestre/mes derivados; normalización de provincias (mapa identidad de `data-contract.md` §4).
+- [x] `load.py`: UPSERT idempotente en `fact_ventas` + carga de dimensiones.
+- [x] `main.py`: orquestación migrate → extract → validate → transform → load.
+- [x] Tests: `test_validate.py`, `test_transform.py` (datasets construidos en memoria; se descartó el fixture xlsx por YAGNI).
+- **Hito verificable #2 (alcanzado)** — carga completa y re-ejecutable sin duplicar: `2000/2000` filas válidas, `fact_ventas` mantiene 2000 tickets distintos entre corridas.
 
 ## Fase 3 — API (`services/api`)
 
