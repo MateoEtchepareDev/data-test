@@ -8,65 +8,63 @@
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css">
 </head>
 <body>
-  <header class="page-header">
-    <div class="page-header__inner">
-      <div>
-        <h1>Dashboard de Ventas</h1>
-        <p class="subtitle">CoffeeTime — datos del período 2024 · consumidos vía API</p>
-      </div>
-      <button id="btn-refresh" class="btn" type="button">Actualizar datos</button>
+  <div id="stage" class="stage">
+    <div class="stage-inner">
+      <header class="topbar">
+        <div class="brand">
+          <p class="eyebrow">CoffeeTime · Ventas 2024</p>
+          <h1>Dashboard de Ventas</h1>
+          <p class="pipeline">Excel → ETL → Supabase → API → Dashboard</p>
+        </div>
+        <button id="btn-refresh" class="btn" type="button">Actualizar datos</button>
+      </header>
+
+      <section class="kpis" aria-label="Indicadores clave">
+        <article class="card kpi" id="kpi-ventas">
+          <p class="kpi__label">Ventas totales</p>
+          <p class="kpi__value">—</p>
+          <p class="kpi__hint">Acumulado 2024</p>
+        </article>
+        <article class="card kpi" id="kpi-cantidad">
+          <p class="kpi__label">Cantidad vendida</p>
+          <p class="kpi__value">—</p>
+          <p class="kpi__hint">Unidades</p>
+        </article>
+        <article class="card kpi" id="kpi-margen">
+          <p class="kpi__label">Margen bruto</p>
+          <p class="kpi__value">—</p>
+          <p class="kpi__hint">ganancia · precio − costo</p>
+        </article>
+        <article class="card kpi kpi--ticket" id="kpi-ticket">
+          <p class="kpi__label">Ticket promedio por sucursal</p>
+          <div class="kpi__grid"></div>
+        </article>
+      </section>
+
+      <section class="grid" aria-label="Análisis">
+        <article class="card panel panel--line">
+          <h2 class="panel__title">Evolución mensual de ventas</h2>
+          <div class="chart-box"><canvas id="chart-lineas"></canvas></div>
+        </article>
+        <article class="card panel panel--categoria">
+          <h2 class="panel__title">Margen bruto por categoría</h2>
+          <div class="chart-box"><canvas id="chart-barras"></canvas></div>
+        </article>
+        <article class="card panel panel--top">
+          <h2 class="panel__title">Top 5 productos · Q4 2024</h2>
+          <div id="top-productos" class="bars-list"></div>
+        </article>
+        <article class="card panel panel--map">
+          <h2 class="panel__title">Provincia con mayor volumen</h2>
+          <div id="mapa" class="mapa"></div>
+        </article>
+      </section>
     </div>
-  </header>
-
-  <main class="layout">
-    <section class="kpi-grid" aria-label="Indicadores clave">
-      <article class="card kpi" id="kpi-ventas">
-        <h2 class="kpi__label">Ventas totales</h2>
-        <p class="kpi__value">—</p>
-      </article>
-      <article class="card kpi" id="kpi-cantidad">
-        <h2 class="kpi__label">Cantidad vendida</h2>
-        <p class="kpi__value">—</p>
-      </article>
-      <article class="card kpi" id="kpi-margen">
-        <h2 class="kpi__label">Margen bruto</h2>
-        <p class="kpi__value">—</p>
-      </article>
-      <article class="card kpi" id="kpi-ticket">
-        <h2 class="kpi__label">Ticket promedio por sucursal</h2>
-        <ul class="kpi__list"></ul>
-      </article>
-    </section>
-
-    <section class="chart-grid" aria-label="Análisis">
-      <article class="card panel">
-        <h2 class="panel__title">Evolución mensual de ventas</h2>
-        <div class="chart-box"><canvas id="chart-lineas"></canvas></div>
-      </article>
-      <article class="card panel">
-        <h2 class="panel__title">Top 5 productos — Q4 2024</h2>
-        <table class="table" id="top-productos">
-          <thead>
-            <tr><th>#</th><th>Producto</th><th class="num">Ventas</th></tr>
-          </thead>
-          <tbody></tbody>
-        </table>
-      </article>
-      <article class="card panel">
-        <h2 class="panel__title">Margen bruto por categoría</h2>
-        <div class="chart-box"><canvas id="chart-barras"></canvas></div>
-      </article>
-      <article class="card panel">
-        <h2 class="panel__title">Provincia con mayor volumen</h2>
-        <div id="mapa" class="mapa"></div>
-      </article>
-    </section>
-  </main>
-
-  <footer class="page-footer">Pipeline: Excel → ETL → Supabase → API REST → Dashboard</footer>
+  </div>
 
   <script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script src="js/fit.js"></script>
   <script src="js/api.js"></script>
   <script src="js/kpis.js"></script>
   <script src="js/chart-lineas.js"></script>

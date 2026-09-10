@@ -1,10 +1,14 @@
 (function () {
   const MESES = [
-    "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
-    "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre",
+    "Ene", "Feb", "Mar", "Abr", "May", "Jun",
+    "Jul", "Ago", "Sep", "Oct", "Nov", "Dic",
   ];
 
   let chart = null;
+
+  function ppi() {
+    return window.devicePixelRatio * (window.DASH_SCALE || 1);
+  }
 
   async function render() {
     const datos = await Dash.fetchJSON("/analytics/evolucion-mensual");
@@ -20,21 +24,51 @@
         datasets: [{
           label: "Ventas ($)",
           data: valores,
-          borderColor: "#7c4a21",
-          backgroundColor: "rgba(124, 74, 33, 0.12)",
-          fill: true,
-          tension: 0.3,
+          borderColor: "#c2410c",
+          backgroundColor: "rgba(194, 65, 12, 0.1)",
+          borderWidth: 2,
+          fill: "origin",
+          tension: 0.35,
           pointRadius: 3,
+          pointBackgroundColor: "#ffffff",
+          pointBorderColor: "#c2410c",
+          pointBorderWidth: 2,
+          pointHoverRadius: 5,
         }],
       },
       options: {
         responsive: true,
         maintainAspectRatio: false,
-        plugins: { legend: { display: false } },
+        devicePixelRatio: ppi(),
+        interaction: { mode: "index", intersect: false },
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            backgroundColor: "#292524",
+            padding: 10,
+            cornerRadius: 8,
+            displayColors: false,
+            titleFont: { size: 12 },
+            bodyFont: { size: 12 },
+            callbacks: { label: (c) => Dash.formatearMoneda(c.parsed.y) },
+          },
+        },
         scales: {
+          x: {
+            grid: { display: false },
+            border: { display: false },
+            ticks: { color: "#78716c", font: { size: 11 } },
+          },
           y: {
             beginAtZero: true,
-            ticks: { callback: (v) => "$" + v.toLocaleString("es-AR") },
+            border: { display: false },
+            grid: { color: "rgba(41, 37, 36, 0.07)" },
+            ticks: {
+              color: "#78716c",
+              font: { size: 11 },
+              maxTicksLimit: 5,
+              callback: (v) => (v >= 1000 ? (v / 1000).toFixed(0) + "k" : v),
+            },
           },
         },
       },

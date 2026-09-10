@@ -16,27 +16,49 @@
       document.getElementById("kpi-margen").querySelector(".kpi__value").textContent =
         Dash.formatearMoneda(margen.margen_bruto);
 
-      const lista = document.getElementById("kpi-ticket").querySelector(".kpi__list");
-      lista.innerHTML = "";
+      const grid = document.getElementById("kpi-ticket").querySelector(".kpi__grid");
+      grid.innerHTML = "";
       tickets.forEach((row) => {
-        const li = document.createElement("li");
-        li.textContent = `${row.nombre_sucursal}: ${Dash.formatearMoneda(row.ticket_promedio)}`;
-        lista.appendChild(li);
+        const chip = document.createElement("div");
+        chip.className = "chip";
+        const name = document.createElement("span");
+        name.className = "chip__name";
+        name.textContent = row.nombre_sucursal;
+        const val = document.createElement("span");
+        val.className = "chip__val";
+        val.textContent = Dash.formatearMoneda(row.ticket_promedio);
+        chip.append(name, val);
+        grid.appendChild(chip);
       });
 
-      const tbody = document.querySelector("#top-productos tbody");
-      tbody.innerHTML = "";
+      const box = document.getElementById("top-productos");
+      box.innerHTML = "";
+      const max = topProductos.length ? topProductos[0].ventas : 0;
       topProductos.forEach((row, i) => {
-        const tr = document.createElement("tr");
-        const rank = document.createElement("td");
+        const div = document.createElement("div");
+        div.className = "bar-row";
+
+        const rank = document.createElement("span");
+        rank.className = "bar-row__rank";
         rank.textContent = i + 1;
-        const nombre = document.createElement("td");
-        nombre.textContent = row.nombre_producto;
-        const ventasCell = document.createElement("td");
-        ventasCell.className = "num";
-        ventasCell.textContent = Dash.formatearMoneda(row.ventas);
-        tr.append(rank, nombre, ventasCell);
-        tbody.appendChild(tr);
+
+        const name = document.createElement("span");
+        name.className = "bar-row__name";
+        name.textContent = row.nombre_producto;
+
+        const track = document.createElement("span");
+        track.className = "bar-row__track";
+        const fill = document.createElement("span");
+        fill.className = "bar-row__fill";
+        fill.style.width = max ? (row.ventas / max) * 100 + "%" : "0%";
+        track.appendChild(fill);
+
+        const val = document.createElement("span");
+        val.className = "bar-row__value";
+        val.textContent = Dash.formatearMoneda(row.ventas);
+
+        div.append(rank, name, track, val);
+        box.appendChild(div);
       });
     } catch (error) {
       Dash.mostrarError(document.getElementById("kpi-ventas").querySelector(".kpi__value"), error.message);

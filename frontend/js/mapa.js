@@ -2,17 +2,30 @@
   let map = null;
   let geoLayer = null;
 
+  const ARG_BOUNDS = [
+    [-55.2, -73.6],
+    [-21.8, -53.6],
+  ];
+
   async function render() {
-    const top = await Dash.fetchJSON("/analytics/provincia-mayor-volumen");
-    const resp = await fetch("data/geo/provincias.json", { cache: "reload" });
+    const [top, resp] = await Promise.all([
+      Dash.fetchJSON("/analytics/provincia-mayor-volumen"),
+      fetch("data/geo/provincias.json", { cache: "reload" }),
+    ]);
     if (!resp.ok) throw new Error("No se pudo cargar el GeoJSON de provincias");
     const geojson = await resp.json();
 
     if (!map) {
-      map = L.map("mapa").setView([-38.4, -63.5], 4);
-      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-        maxZoom: 18,
-        attribution: "&copy; OpenStreetMap",
+      map = L.map("mapa", {
+        scrollWheelZoom: false,
+        zoomControl: true,
+        minZoom: 3,
+        maxZoom: 10,
+      }).setView([-38.4, -63.5], 4);
+      map.setMaxBounds(ARG_BOUNDS);
+      L.tileLayer("https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png", {
+        maxZoom: 19,
+        attribution: "&copy; OpenStreetMap &copy; CARTO",
       }).addTo(map);
     }
 
@@ -25,19 +38,22 @@
       geoLayer.addData(geojson);
     }
 
-    geoLayer.setStyle((feature) => ({
-      color: "#ffffff",
-      weight: 1,
-      fillColor: feature.properties.name === destacada ? "#b4692e" : "#e8d5bb",
-      fillOpacity: feature.properties.name === destacada ? 0.85 : 0.5,
-    }));
+    geoLayer.setStyle((feature) => {
+      const esDestacada = feature.properties.name === destacada;
+      return {
+        color: "#ffffff",
+        weight: esDestacada ? 1.6 : 0.8,
+        fillColor: esDestacada ? "#c2410c" : "#f6f3f0",
+        fillOpacity: esDestacada ? 0.9 : 0.75,
+      };
+    });
     geoLayer.eachLayer((layer) => {
       const nombre = layer.feature.properties.name;
       const esDestacada = nombre === destacada;
       if (esDestacada) layer.bringToFront();
       layer.bindTooltip(
         nombre + (esDestacada && top ? ` — ${Dash.formatearMoneda(top.ventas)}` : ""),
-        { permanent: false, direction: "center" }
+        { permanent: false, direction: "center", opacity: 1 }
       );
     });
   }
