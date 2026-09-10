@@ -1,0 +1,47 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Transform: AWS::Serverless-2016-10-31
+Description: Dashboard de Ventas - API Lambda con function URL
+
+Parameters:
+  SupabaseDbUrl:
+    Type: String
+    NoEcho: true
+    Description: Connection string pooled de Supabase (Supavisor, puerto 6543).
+
+Resources:
+  ApiFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: build/
+      Handler: api.app.handler
+      Runtime: python3.12
+      Timeout: 10
+      MemorySize: 128
+      Environment:
+        Variables:
+          SUPABASE_DB_URL: !Ref SupabaseDbUrl
+      FunctionUrlConfig:
+        AuthType: NONE
+        Cors:
+          AllowOrigins:
+            - "*"
+          AllowMethods:
+            - GET
+          AllowHeaders:
+            - "*"
+      Policies:
+        - AWSLambdaBasicExecutionRole
+
+  ApiLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/aws/lambda/${ApiFunction}"
+      RetentionInDays: 1
+
+Outputs:
+  ApiUrl:
+    Description: URL de la funcion Lambda
+    Value: !GetAtt ApiFunction.Url
+  ApiFunctionName:
+    Description: Nombre de la funcion Lambda
+    Value: !Ref ApiFunction

@@ -51,20 +51,20 @@ El proyecto cubre el ciclo completo de un flujo de datos: **ingesta → validaci
 | Frontend | HTML + CSS + JS vanilla, sin build | El sistema no exige un framework de frontend; vanilla evita la complejidad de un pipeline de build y mantiene el foco del proyecto en la capa de datos y backend. |
 | Gráficos | Chart.js | Librería liviana, sin dependencias de build, suficiente para líneas y barras sin necesidad de un ecosistema de visualización más pesado. |
 | Mapa | Leaflet + GeoJSON de provincias argentinas | Solución estándar y liviana para mapas interactivos; no requiere claves de API de pago ni SDKs pesados para un mapa coroplético simple. |
-| Cómputo backend | **AWS Lambda** (Flask vía adaptador Mangum) + **API Gateway** | Arquitectura serverless para la API: sin servidor siempre encendido, coherente con un dashboard sin tráfico constante. El ETL no corre en Lambda (ver fila siguiente); esta fila cubre únicamente el cómputo de la API. Al eliminar RDS/RDS Proxy de la ecuación, tampoco es necesario configurar VPC para Lambda (Supabase se accede por internet público vía Supavisor), lo que simplifica el despliegue. |
+| Cómputo backend | **AWS Lambda** (Flask vía adaptador Mangum) con **function URL** | Arquitectura serverless para la API: sin servidor siempre encendido, coherente con un dashboard sin tráfico constante. La function URL es un endpoint HTTPS nativo de Lambda (billing de Lambda, free tier *always free* de 1M requests/mes), reemplaza a API Gateway. El ETL no corre en Lambda (ver fila siguiente); esta fila cubre únicamente el cómputo de la API. Al eliminar RDS/RDS Proxy de la ecuación, tampoco es necesario configurar VPC para Lambda (Supabase se accede por internet público vía Supavisor), lo que simplifica el despliegue. |
 | Cómputo ETL | **GitHub Actions** (runner externo, `workflow_dispatch`) | El ETL corre íntegramente en el runner de GitHub Actions, no en AWS. Evita mantener una Lambda adicional (handler, deploy, rol IAM propio) para un proceso que se ejecuta un puñado de veces en la vida del proyecto. Sigue demostrando CI/CD, manejo de secrets y ejecución de un script Python contra la base, sin la fricción operativa de una función serverless dedicada. |
-| Hosting frontend | S3 + CloudFront | Patrón estándar para contenido estático: S3 almacena los archivos, CloudFront los sirve con HTTPS y baja latencia vía CDN, sin necesidad de un servidor dedicado para archivos que no cambian por request. |
+| Hosting frontend | **GitHub Pages** | Hosting gratuito para contenido estático publicado desde el propio repositorio (HTML/CSS/JS sin build), con HTTPS incluido. Reemplaza S3 + CloudFront: cero servicio AWS, cero costo, y el deploy queda atado al repo. Requiere repositorio público (disponible en GitHub Free). Como el sitio vive bajo una subruta (`https://<user>.github.io/<repo>/`), todos los assets usan rutas relativas. |
 | Origen del Excel | Versionado en el repositorio (Git) | El dataset es histórico y no cambia entre corridas, por lo que no se justifica un bucket de entrada en S3 ni un mecanismo de descarga externo. El runner de GitHub Actions lo lee directamente del checkout del repo. |
 | Automatización de carga | GitHub Actions (`workflow_dispatch`, disparo manual) | El dataset es histórico (no cambia), por lo que programar un cron periódico simularía una necesidad de recurrencia que no existe. Un disparo manual sigue demostrando CI/CD, manejo de secrets y ejecución de un script Python contra la base, sin inventar un caso de uso ficticio. |
-| Secrets/config | AWS Secrets Manager + GitHub Secrets | Secrets Manager guarda la connection string de Supabase para el backend en Lambda; GitHub Secrets guarda la misma connection string para el workflow de ETL. Ninguna credencial se versiona en el repositorio. Como el Excel está versionado en Git (no en S3), el workflow de ETL no necesita credenciales de AWS — solo la connection string de Supabase. |
+| Secrets/config | **Variable de entorno en Lambda + GitHub Secrets** | La connection string de Supabase para el backend se pasa como variable de entorno de la Lambda en el deploy (SAM parámetro `SupabaseDbUrl`, poblado desde un GitHub Secret en `deploy-api.yml`); GitHub Secrets guarda la misma connection string para el workflow de ETL. Ninguna credencial se versiona en el repositorio. Reemplaza a AWS Secrets Manager: para una única connection string en una función propia, una variable de entorno es el cambio más pequeño y no suma un servicio AWS. Como el Excel está versionado en Git (no en S3), el workflow de ETL no necesita credenciales de AWS — solo la connection string de Supabase. |
 
 ---
 
 ## 4. Arquitectura de deploy (AWS + Supabase)
 
 ```
-Frontend      → S3 (hosting estático) + CloudFront (CDN/HTTPS)
-Backend       → Lambda (Flask vía Mangum) + API Gateway
+Frontend      → GitHub Pages (hosting estático gratuito, HTTPS, repo público)
+Backend       → Lambda (Flask vía Mangum) con function URL
 Base de datos → Supabase (PostgreSQL administrado, fuera de AWS)
                   — pooling de conexiones vía Supavisor (incluido, sin costo extra)
 ETL/carga     → GitHub Actions (workflow_dispatch, manual), corre el script
@@ -75,32 +75,29 @@ ETL/carga     → GitHub Actions (workflow_dispatch, manual), corre el script
 ### Flujo de datos
 
 1. El script de ETL (Python, disparado manualmente desde GitHub Actions) lee el Excel de origen **versionado en el propio repositorio** (parte del checkout del workflow), lo valida y lo carga al modelo dimensional en Supabase.
-2. El backend (Lambda + API Gateway) expone los KPIs y consultas analíticas como endpoints REST, leyendo de Supabase mediante SQL (sin ORM), usando la connection string *pooled* (Supavisor).
-3. El frontend, servido estáticamente desde S3 vía CloudFront, hace `fetch()` a esos endpoints y renderiza las tarjetas de KPIs, el gráfico de líneas, el mapa (Leaflet) y el gráfico de barras (Chart.js).
+2. El backend (Lambda con **function URL**) expone los KPIs y consultas analíticas como endpoints REST, leyendo de Supabase mediante SQL (sin ORM), usando la connection string *pooled* (Supavisor).
+3. El frontend, servido estáticamente desde GitHub Pages, hace `fetch()` a los endpoints de la function URL de la Lambda y renderiza las tarjetas de KPIs, el gráfico de líneas, el mapa (Leaflet) y el gráfico de barras (Chart.js). La URL de la API se inyecta en `frontend/js/config.js` (`window.API_BASE`) por el workflow de deploy desde la variable de repo `API_BASE_URL`; en dev local, si `API_BASE` queda vacío, `api.js` cae a `http://127.0.0.1:5000`.
 4. El dashboard nunca accede a la base de datos directamente — toda la comunicación pasa por la API.
 
 ### Servicios AWS utilizados
 
-- **S3** — hosting del frontend estático únicamente. No se usa como bucket de entrada para el Excel, ya que este vive versionado en el repositorio.
-- **CloudFront** — CDN/HTTPS delante de S3.
-- **Lambda** — función de API (Flask vía Mangum) exclusivamente. El ETL no corre en Lambda; se ejecuta en el runner de GitHub Actions (ver sección 5 y fila "Cómputo ETL" en la sección 3).
-- **API Gateway** — trigger HTTP para la Lambda de API.
-- **Secrets Manager** — guarda la connection string de Supabase para el backend.
-- **IAM** — roles y permisos para Lambda, S3 y Secrets Manager.
-- **CloudWatch** — logs y monitoreo de Lambda y API Gateway.
+- **Lambda** — función de API (Flask vía Mangum) exclusivamente, expuesta con **function URL** (endpoint HTTPS nativo, auth `NONE`, CORS `*`). El ETL no corre en Lambda; se ejecuta en el runner de GitHub Actions (ver sección 5 y fila "Cómputo ETL" en la sección 3).
+- **IAM** — rol de la Lambda con permisos de logging únicamente (sin S3 ni Secrets Manager).
+- **CloudWatch** — logs de la Lambda (LogGroup con retención de 1 día).
 - **AWS Budgets** — alertas de facturación (configurar antes que cualquier otra cosa).
 
 ### Fuera de AWS
 
 - **Supabase** — Postgres administrado, reemplaza RDS/Aurora por completo. El modelo dimensional, las consultas SQL y la lógica de carga idempotente se mantienen sin cambios respecto al diseño original.
+- **GitHub Pages** — hosting estático del frontend (requiere repositorio público en el plan Free).
 
 ### Notas de implementación
 
 - Lambda se conecta a Supabase por la connection string *pooled* (puerto 6543, vía Supavisor), no la conexión directa (puerto 5432) — esto reemplaza la función de RDS Proxy sin costo ni infraestructura adicional.
 - Al no depender de RDS, Lambda no necesita correr dentro de una VPC, lo que simplifica el networking y evita cargos de NAT Gateway.
-- Ningún archivo de configuración con credenciales se versiona en el repositorio; todo secreto vive en AWS Secrets Manager (para el backend) o GitHub Secrets (para el workflow de ETL). El Excel de origen sí se versiona en el repo — no es una credencial ni un dato sensible, es el dataset de referencia del proyecto.
+- Ningún archivo de configuración con credenciales se versiona en el repositorio; la connection string de Supabase se inyecta como variable de entorno de la Lambda en el deploy (desde un GitHub Secret via `deploy-api.yml`) y como GitHub Secret para el workflow de ETL. El Excel de origen sí se versiona en el repo — no es una credencial ni un dato sensible, es el dataset de referencia del proyecto.
 - El plan free de Supabase pausa proyectos inactivos tras 7 días sin requests. **Mitigación elegida: resumir el proyecto manualmente desde el dashboard de Supabase antes de cada demo.** Se descarta un ping automático programado por ser sobre-ingeniería para un proyecto que se levanta un par de veces en total.
-- Configurar una alarma de facturación (AWS Budgets) desde el inicio, incluso sin RDS de por medio — Lambda, API Gateway y CloudFront tienen capas gratuitas generosas pero no ilimitadas.
+- Configurar una alarma de facturación (AWS Budgets) desde el inicio, incluso con un footprint reducido de Lambda: la capa gratuita de Lambda (function URLs incluidas) es *always free* pero no ilimitada.
 
 ---
 
@@ -303,6 +300,7 @@ dashboard-ventas/
 │   ├── css/
 │   │   └── styles.css
 │   ├── js/
+│   │   ├── config.js           # window.API_BASE (inyectado por deploy-frontend.yml; vacío en dev)
 │   │   ├── api.js             # fetch a los endpoints, con cache: 'reload' donde aplique
 │   │   ├── kpis.js
 │   │   ├── chart-lineas.js    # Chart.js — evolución mensual
@@ -315,14 +313,14 @@ dashboard-ventas/
 │   └── ventas.xlsx            # dataset versionado en el repo
 │
 ├── infra/
-│   ├── template.yaml          # SAM: Lambda, API Gateway, IAM, referencia a Secrets Manager
-│   └── build.sh               # copia packages/shared/src/shared → build dir antes de sam build
+│   ├── template.yaml          # SAM: Lambda con function URL, IAM (logs), variable de entorno SUPABASE_DB_URL
+│   └── build.sh               # copia packages/shared/src/shared y services/api/src/api → build dir antes de sam build
 │
 ├── .github/
 │   └── workflows/
 │       ├── etl.yml            # workflow_dispatch manual; corre migrate.py antes de load
 │       ├── deploy-api.yml     # build.sh + sam build/deploy
-│       └── deploy-frontend.yml # sync a S3 + invalidate CloudFront
+│       └── deploy-frontend.yml # GitHub Pages: publica frontend/ + inyecta window.API_BASE desde API_BASE_URL
 │
 ├── docs/
 │   ├── architecture.md        # este documento + notas de decisiones revisables (FastAPI, trigger ETL)
