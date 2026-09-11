@@ -1,3 +1,4 @@
+from asgiref.wsgi import WsgiToAsgi
 from flask import Flask
 from mangum import Mangum
 
@@ -20,7 +21,7 @@ def create_app():
 
 
 app = create_app()
-handler = Mangum(app)
+handler = Mangum(WsgiToAsgi(app), lifespan="off")
 
 
 if __name__ == "__main__":

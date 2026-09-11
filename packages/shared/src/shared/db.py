@@ -7,7 +7,10 @@ ENV_VAR = "SUPABASE_DB_URL"
 
 
 def _load_dotenv():
-    env_path = Path(__file__).resolve().parents[4] / ".env"
+    try:
+        env_path = Path(__file__).resolve().parents[4] / ".env"
+    except IndexError:
+        return
     if not env_path.exists():
         return
     for line in env_path.read_text(encoding="utf-8").splitlines():

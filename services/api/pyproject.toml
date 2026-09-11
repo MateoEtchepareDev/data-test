@@ -7,7 +7,7 @@ name = "api"
 version = "0.1.0"
 description = "API: KPIs y consultas analíticas del modelo dimensional en Supabase"
 requires-python = ">=3.12"
-dependencies = ["flask>=3.0", "mangum>=0.17", "psycopg2-binary>=2.9.10"]
+dependencies = ["flask>=3.0", "mangum>=0.17", "psycopg2-binary>=2.9.10", "asgiref>=3.8"]
 
 [project.optional-dependencies]
 dev = ["pytest"]

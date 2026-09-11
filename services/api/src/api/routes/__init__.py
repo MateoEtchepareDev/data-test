@@ -1,6 +1,9 @@
 from functools import wraps
+import logging
 
 from flask import request
+
+logger = logging.getLogger(__name__)
 
 
 def _num(value):
@@ -38,6 +41,7 @@ def api_error_handler(fn):
         except ValueError as exc:
             return {"error": str(exc)}, 400
         except Exception:
+            logger.exception("error interno en %s %s", request.method, request.path)
             return {"error": "error interno"}, 500
 
     return wrapper
