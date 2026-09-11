@@ -22,13 +22,6 @@ Resources:
           SUPABASE_DB_URL: !Ref SupabaseDbUrl
       FunctionUrlConfig:
         AuthType: NONE
-        Cors:
-          AllowOrigins:
-            - "*"
-          AllowMethods:
-            - GET
-          AllowHeaders:
-            - "*"
       Policies:
         - AWSLambdaBasicExecutionRole
 
