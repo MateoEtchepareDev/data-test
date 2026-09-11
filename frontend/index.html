@@ -3,6 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#ede9e3">
   <title>Dashboard de Ventas — CoffeeTime</title>
   <link rel="stylesheet" href="css/styles.css">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css">
@@ -16,8 +17,10 @@
           <h1>Dashboard de Ventas</h1>
           <p class="pipeline">Excel → ETL → Supabase → API → Dashboard</p>
         </div>
-        <button id="btn-refresh" class="btn" type="button">Actualizar datos</button>
+        <button id="btn-refresh" class="btn" type="button" aria-label="Actualizar datos">Actualizar datos</button>
       </header>
+
+      <div id="api-alert" class="alert" hidden role="status"></div>
 
       <section class="kpis" aria-label="Indicadores clave">
         <article class="card kpi" id="kpi-ventas">
@@ -55,7 +58,10 @@
           <div id="top-productos" class="bars-list"></div>
         </article>
         <article class="card panel panel--map">
-          <h2 class="panel__title">Provincia con mayor volumen</h2>
+          <h2 class="panel__title">
+            Provincia con mayor volumen
+            <span id="map-destacada" class="map-legend">—</span>
+          </h2>
           <div id="mapa" class="mapa"></div>
         </article>
       </section>
@@ -64,7 +70,6 @@
 
   <script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-  <script src="js/fit.js"></script>
   <script src="js/config.js"></script>
   <script src="js/api.js"></script>
   <script src="js/kpis.js"></script>

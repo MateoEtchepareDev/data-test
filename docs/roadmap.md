@@ -53,7 +53,8 @@ No requerido hasta fases posteriores: cuenta AWS, GeoJSON (Fase 4), pandas/openp
 - [x] `js/chart-barras.js`: rentabilidad por categoría (Chart.js, `/analytics/margen-por-categoria`).
 - [x] `js/mapa.js` + `data/geo/provincias.json`: mapa por provincia (Leaflet), destaca la provincia con mayor volumen.
 - [x] Botón "Actualizar datos": recarga todos los endpoints sin cambios de código.
-- **Hito verificable #4 (alcanzado)** — dashboard funcional contra API local, sin acceso directo a la base (verificado con Playwright: valores exactos, charts, mapa, sin errores de consola, refresh re-consumiendo la API).
+- [x] Layout responsive (3 → 2 → 1 columnas), sin stage fijo 1366×768 (eliminado `fit.js`), con estados de error visibles (banner global `#api-alert`, badges en paneles), mapa robusto a fallos de API (el GeoJSON ya no depende de la API), verificación con `scripts/ui_check.py`.
+- **Hito verificable #4 (alcanzado)** — dashboard funcional contra API local, sin acceso directo a la base. Verificación reproducible con `scripts/ui_check.py` (Playwright, servidores locales auto-levantados): 5 viewports (desktop/tablet/mobile), KPIs y charts renderizados, mapa con tiles sin gris, 23 provincias dibujadas, exactamente 1 provincia destacada visible y coincidente con la API, sin errores de consola, refresh re-consumiendo la API, y **modo fallo**: con la API inaccesible el mapa igual se renderiza y la UI avisa (banner + badge).
 
 ## Fase 5 — Infra y deploy
 

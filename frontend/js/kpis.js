@@ -61,6 +61,7 @@
         box.appendChild(div);
       });
     } catch (error) {
+      Dash.notifyError();
       Dash.mostrarError(document.getElementById("kpi-ventas").querySelector(".kpi__value"), error.message);
     }
   }
