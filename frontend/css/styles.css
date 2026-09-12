@@ -9,7 +9,7 @@
 
   --ink: #211d1a;
   --ink-quiet: #55504b;
-  --muted: #8a837b;
+  --muted: #716b63;
   --hairline: #e3ddd5;
   --hairline-strong: #cfc6bb;
   --bg: #ede9e3;
@@ -31,7 +31,9 @@
   --space-5: 20px;
 }
 
-* { box-sizing: border-box; }
+*,
+*::before,
+*::after { box-sizing: border-box; }
 
 html, body { height: 100%; }
 
@@ -137,6 +139,12 @@ body {
 
 @keyframes spin { to { transform: rotate(360deg); } }
 
+@media (prefers-reduced-motion: reduce) {
+  .btn.is-loading::before {
+    animation: none;
+  }
+}
+
 /* ---------- Alerts ---------- */
 
 .alert {
@@ -176,9 +184,10 @@ body {
   border-top: 2px solid transparent;
 }
 
-/* First KPI (the primary number, typically orders/volume) gets the accent
-   edge so the eye has one clear starting point across the row */
-.kpi:first-child { border-top-color: var(--accent); }
+/* Explicit modifier for the primary KPI, rather than relying on DOM order —
+   the accent edge shouldn't silently jump to a different card if the
+   markup/data order changes. Apply this class to whichever KPI is primary. */
+.kpi--primary { border-top-color: var(--accent); }
 
 .kpi__label {
   margin: 0;
@@ -236,9 +245,10 @@ body {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  min-width: 0;
 }
 
-.chip__val { font-weight: 700; }
+.chip__val { font-weight: 700; flex: none; }
 
 /* ---------- Main grid ---------- */
 
@@ -355,6 +365,7 @@ body {
   flex-direction: column;
   justify-content: center;
   gap: var(--space-2);
+  padding: 0;
 }
 
 .bar-row {
@@ -375,6 +386,7 @@ body {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  min-width: 0;
 }
 
 .bar-row__track {

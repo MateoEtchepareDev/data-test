@@ -1,4 +1,7 @@
 (function () {
+  Chart.defaults.animation = false;
+  Chart.defaults.transitions.active = { animation: { duration: 0 } };
+
   const MESES = [
     "Ene", "Feb", "Mar", "Abr", "May", "Jun",
     "Jul", "Ago", "Sep", "Oct", "Nov", "Dic",
