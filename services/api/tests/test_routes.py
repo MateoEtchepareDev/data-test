@@ -148,6 +148,26 @@ def test_provincia_mayor_volumen_sin_datos(client, monkeypatch):
     assert resp.get_json() == {"provincia": None, "ventas": None}
 
 
+def test_ventas_por_provincia(client, monkeypatch):
+    rows = [
+        {"provincia": "Córdoba", "ventas": Decimal("5000.5")},
+        {"provincia": "Mendoza", "ventas": Decimal("3000.25")},
+    ]
+    monkeypatch.setattr(analytics_sql, "ventas_por_provincia", lambda conn: rows)
+    resp = client.get("/analytics/ventas-por-provincia")
+    assert resp.status_code == 200
+    assert resp.get_json() == [
+        {"provincia": "Córdoba", "ventas": 5000.5},
+        {"provincia": "Mendoza", "ventas": 3000.25},
+    ]
+
+
+def test_ventas_por_provincia_sin_datos(client, monkeypatch):
+    monkeypatch.setattr(analytics_sql, "ventas_por_provincia", lambda conn: [])
+    resp = client.get("/analytics/ventas-por-provincia")
+    assert resp.get_json() == []
+
+
 def test_categoria_mas_rentable(client, monkeypatch):
     monkeypatch.setattr(
         analytics_sql,

@@ -56,6 +56,21 @@ def provincia_mayor_volumen(conn):
         return cur.fetchone()
 
 
+def ventas_por_provincia(conn):
+    sql = (
+        f"SELECT pr.nombre_provincia AS provincia, "
+        f"SUM(fv.cantidad * fv.precio_unitario) AS ventas "
+        f"FROM {TABLE_FACT_VENTAS} AS fv "
+        f"JOIN {TABLE_DIM_SUCURSAL} AS s ON fv.id_sucursal = s.id_sucursal "
+        f"JOIN {TABLE_DIM_PROVINCIA} AS pr ON s.id_provincia = pr.id_provincia "
+        f"GROUP BY pr.nombre_provincia "
+        f"ORDER BY ventas DESC"
+    )
+    with conn.cursor(cursor_factory=RealDictCursor) as cur:
+        cur.execute(sql)
+        return cur.fetchall()
+
+
 def categoria_mas_rentable(conn):
     sql = (
         f"SELECT p.categoria, "

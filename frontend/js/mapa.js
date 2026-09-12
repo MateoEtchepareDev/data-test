@@ -36,17 +36,27 @@
   function render() {
     const resultados = Promise.allSettled([
       Dash.fetchJSON("/analytics/provincia-mayor-volumen"),
+      Dash.fetchJSON("/analytics/ventas-por-provincia"),
       fetch("data/geo/provincias.json", { cache: "reload" }),
     ]);
 
     if (destacadaEl) destacadaEl.classList.remove("is-error");
 
     resultados
-      .then(async ([api, geo]) => {
+      .then(async ([api, ventasApi, geo]) => {
         const top = api.status === "fulfilled" ? api.value : null;
         const apiFallido = api.status === "rejected";
-        let geojson = null;
+        const ventasPorProvincia = new Map();
+        if (ventasApi.status === "fulfilled") {
+          const rows = Array.isArray(ventasApi.value) ? ventasApi.value : [];
+          rows.forEach((row) => {
+            if (row && row.provincia) {
+              ventasPorProvincia.set(normalizeNombre(row.provincia), row.ventas);
+            }
+          });
+        }
 
+        let geojson = null;
         if (geo.status === "rejected" || !geo.value.ok) {
           throw new Error("No se pudo cargar el GeoJSON de provincias.");
         }
@@ -82,39 +92,62 @@
         geoLayer.clearLayers();
         geoLayer.addData(geojson);
 
-        const destacada = top && top.provincia ? top.provincia : null;
-        const target = normalizeNombre(destacada);
+        let seleccion = top && top.provincia ? normalizeNombre(top.provincia) : null;
 
-        geoLayer.setStyle((feature) => {
-          const name = feature.properties && feature.properties.name;
-          const esDestacada = target && normalizeNombre(name) === target;
-          return {
-            color: "#ffffff",
-            weight: esDestacada ? 1.6 : 0.8,
-            fillColor: esDestacada ? "#c2410c" : "#f6f3f0",
-            fillOpacity: esDestacada ? 0.9 : 0.75,
-          };
-        });
+        function colorDeFeature(feature) {
+          const name = feature && feature.properties && feature.properties.name;
+          const n = normalizeNombre(name);
+          if (seleccion && n === seleccion) {
+            return { color: "#ffffff", weight: 1.6, fillColor: "#c2410c", fillOpacity: 0.9 };
+          }
+          if (ventasPorProvincia.has(n)) {
+            return { color: "#b45309", weight: 1, fillColor: "rgba(194, 65, 12, 0.18)", fillOpacity: 1 };
+          }
+          return { color: "#d6d3d1", weight: 0.8, fillColor: "#f6f3f0", fillOpacity: 0.75 };
+        }
 
-        const marco = top && top.ventas ? ` — ${Dash.formatearMoneda(top.ventas)}` : "";
+        geoLayer.setStyle(colorDeFeature);
+
         geoLayer.eachLayer((layer) => {
           const name = layer.feature && layer.feature.properties && layer.feature.properties.name;
-          const esDestacada = !!target && normalizeNombre(name) === target;
-          if (esDestacada) layer.bringToFront();
-          layer.bindTooltip(name + (esDestacada ? marco : ""), {
+          const n = normalizeNombre(name);
+          const el = layer.getElement && layer.getElement();
+          if (el) el.dataset.ventasProvincia = n;
+
+          if (!ventasPorProvincia.has(n)) {
+            if (el) el.style.pointerEvents = "none";
+            return;
+          }
+
+          const texto = `${name} — ${Dash.formatearMoneda(ventasPorProvincia.get(n))}`;
+          if (seleccion && n === seleccion) layer.bringToFront();
+          layer.bindTooltip(texto, {
             permanent: false,
             direction: "center",
             opacity: 1,
           });
+
+          layer.on("click", () => {
+            seleccion = n;
+            geoLayer.setStyle(colorDeFeature);
+            layer.bringToFront();
+            if (destacadaEl) {
+              destacadaEl.classList.remove("is-error");
+              destacadaEl.textContent = texto;
+            }
+          });
         });
 
+        const marco = top && top.ventas != null ? ` — ${Dash.formatearMoneda(top.ventas)}` : "";
         if (destacadaEl) {
           if (apiFallido) {
             Dash.notifyError();
             destacadaEl.textContent = "API no disponible";
             destacadaEl.classList.add("is-error");
+          } else if (seleccion) {
+            destacadaEl.textContent = `${top.provincia}${marco}`;
           } else {
-            destacadaEl.textContent = destacada ? `${destacada}${marco}` : "—";
+            destacadaEl.textContent = "—";
           }
         }
 

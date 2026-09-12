@@ -9,6 +9,8 @@ page with Playwright across desktop/tablet/mobile viewports and asserts:
   * the map initializes, tiles render (no gray tiles), 23 provinces are drawn
   * exactly one province is highlighted, fully visible, matching the API's top province
   * the legend badge shows that province
+  * clicking a province with sales shows its figure in the legend (one highlight)
+  * clicking a province without data does nothing (pointer-events none)
   * "Actualizar datos" re-renders without breaking the map
   * failure mode: with the API down, the map still renders provinces and the
     UI surfaces an error instead of going blank
@@ -258,6 +260,56 @@ def main():
             check(st["inited"], "map re-rendered after refresh")
             check(st["highlightPaths"] == 1, "province still highlighted after refresh")
             check(st["highlightVisible"], "highlight visible after refresh")
+
+            print("== Province click ==")
+
+            def province_box(page, prov):
+                return page.evaluate(
+                    "() => {"
+                    "  const el = Array.from(document.querySelectorAll('#mapa path'))"
+                    "    .find(p => p.dataset.ventasProvincia === " + json.dumps(prov) + ");"
+                    "  if (!el) return null;"
+                    "  el.scrollIntoView({ block: 'center' });"
+                    "  const b = el.getBoundingClientRect();"
+                    "  const c = document.getElementById('mapa').getBoundingClientRect();"
+                    "  return {"
+                    "    x: b.left + b.width / 2,"
+                    "    y: b.top + b.height / 2,"
+                    "    inside: b.left >= c.left - 1 && b.right <= c.right + 1 &&"
+                    "      b.top >= c.top - 1 && b.bottom <= c.bottom + 1,"
+                    "    pointerEvents: getComputedStyle(el).pointerEvents,"
+                    "  };"
+                    "}"
+                )
+
+            mendoza = province_box(page, "mendoza")
+            check(mendoza is not None and mendoza["inside"],
+                  "data province (Mendoza) visible inside the map")
+            check(mendoza is not None and mendoza["pointerEvents"] != "none",
+                  "data province receives pointer events (clickable)")
+            if mendoza and mendoza["inside"] and mendoza["pointerEvents"] != "none":
+                page.mouse.click(mendoza["x"], mendoza["y"])
+                page.wait_for_timeout(500)
+                st = map_state(page)
+                check(normalize(legend_name(page)) == "mendoza",
+                      f"legend shows clicked province ('{legend_name(page)}')")
+                check(st["highlightPaths"] == 1,
+                      "exactly one province highlighted after click")
+
+            la_pampa = province_box(page, "la pampa")
+            check(la_pampa is not None and la_pampa["inside"],
+                  "no-data province (La Pampa) visible inside the map")
+            check(la_pampa is not None and la_pampa["pointerEvents"] == "none",
+                  "no-data province is not clickable (pointer-events none)")
+            if la_pampa and la_pampa["inside"]:
+                antes = legend_name(page)
+                page.mouse.click(la_pampa["x"], la_pampa["y"])
+                page.wait_for_timeout(400)
+                st = map_state(page)
+                check(legend_name(page) == antes,
+                      "clicking a province without data leaves the legend unchanged")
+                check(st["highlightPaths"] == 1,
+                      "highlight unchanged after clicking a province without data")
 
             print("== Failure mode: API down ==")
             down = browser.new_page(viewport={"width": 1366, "height": 768})

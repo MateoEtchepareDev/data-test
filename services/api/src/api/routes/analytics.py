@@ -46,6 +46,17 @@ def provincia_mayor_volumen():
     return {"provincia": row["provincia"], "ventas": _num(row["ventas"])}
 
 
+@bp.get("/ventas-por-provincia")
+@api_error_handler
+def ventas_por_provincia():
+    with connect() as conn:
+        rows = analytics_sql.ventas_por_provincia(conn)
+    return [
+        {"provincia": row["provincia"], "ventas": _num(row["ventas"])}
+        for row in rows
+    ]
+
+
 @bp.get("/categoria-mas-rentable")
 @api_error_handler
 def categoria_mas_rentable():
