@@ -364,48 +364,50 @@ body {
   display: flex;
   flex-direction: column;
   justify-content: center;
-  gap: var(--space-2);
-  padding: 0;
+  gap: var(--space-3);
+  padding: var(--space-1) 0;
 }
 
 .bar-row {
   display: grid;
-  grid-template-columns: 18px 1fr 2fr 62px;
+  grid-template-columns: 22px minmax(0, 1.4fr) minmax(0, 2fr) max-content;
   gap: var(--space-2);
   align-items: center;
-  font-size: 11.5px;
+  font-size: 12px;
+  line-height: 1.25;
 }
 
 .bar-row__rank {
   font-weight: 700;
   color: var(--muted);
+  text-align: center;
 }
 
 .bar-row__name {
-  font-weight: 500;
+  min-width: 0;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  min-width: 0;
 }
 
 .bar-row__track {
-  height: 6px;
-  background: var(--accent-softer);
+  height: 8px;
   border-radius: 99px;
+  background: var(--accent-softer);
   overflow: hidden;
 }
 
 .bar-row__fill {
   height: 100%;
-  min-width: 2px;
-  background: var(--accent);
   border-radius: 99px;
+  background: var(--accent);
+  min-width: 4px;
 }
 
 .bar-row__value {
-  text-align: right;
   font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
   white-space: nowrap;
 }
 

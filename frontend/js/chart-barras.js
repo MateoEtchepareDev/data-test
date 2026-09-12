@@ -1,6 +1,11 @@
 (function () {
   let chart = null;
 
+  // The bar chart must not animate — neither on first render nor on every
+  // refresh. Set it locally so this module is order-independent.
+  Chart.defaults.animation = false;
+  Chart.defaults.transitions.active = { animation: { duration: 0 } };
+
   function render() {
     return Dash.fetchJSON("/analytics/margen-por-categoria")
       .then((datos) => {

@@ -69,6 +69,5 @@ No requerido hasta fases posteriores: cuenta AWS, GeoJSON (Fase 4), pandas/openp
 
 ## Fase 6 — Polish
 
-- Umbral de aborto 5% validado contra el dataset real.
 - Alerta de facturación (AWS Budgets).
 - Verificación de idempotencia real en Supabase.
