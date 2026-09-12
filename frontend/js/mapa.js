@@ -54,6 +54,8 @@
               ventasPorProvincia.set(normalizeNombre(row.provincia), row.ventas);
             }
           });
+        } else if (ventasApi.status === "rejected") {
+          Dash.notifyError();
         }
 
         let geojson = null;

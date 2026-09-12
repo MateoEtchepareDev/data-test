@@ -45,6 +45,7 @@ jobs:
         run: |
           sam deploy \
             --stack-name dashboard-ventas-api \
+            --resolve-s3 \
             --parameter-overrides SupabaseDbUrl="${{ secrets.SUPABASE_DB_URL }}" \
             --no-confirm-changeset \
             --capabilities CAPABILITY_IAM \
