@@ -41,6 +41,4 @@ jobs:
           cd ..
 
       - name: Update Lambda (dashboard-ventas-api-manual)
-        run: aws lambda update-function-code \
-          --function-name dashboard-ventas-api-manual \
-          --zip-file fileb://infra/api-deploy.zip
+        run: aws lambda update-function-code --function-name dashboard-ventas-api-manual --zip-file "fileb://infra/api-deploy.zip"
