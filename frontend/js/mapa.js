@@ -94,16 +94,28 @@
 
         let seleccion = top && top.provincia ? normalizeNombre(top.provincia) : null;
 
+        let maxVentas = 0;
+        ventasPorProvincia.forEach((v) => {
+          if (typeof v === "number" && v > maxVentas) maxVentas = v;
+        });
+
         function colorDeFeature(feature) {
           const name = feature && feature.properties && feature.properties.name;
           const n = normalizeNombre(name);
           if (seleccion && n === seleccion) {
             return { color: "#ffffff", weight: 1.6, fillColor: "#c2410c", fillOpacity: 0.9 };
           }
-          if (ventasPorProvincia.has(n)) {
-            return { color: "#b45309", weight: 1, fillColor: "rgba(194, 65, 12, 0.18)", fillOpacity: 1 };
+          const ventas = ventasPorProvincia.get(n);
+          if (typeof ventas === "number") {
+            const alpha = maxVentas > 0 ? 0.3 + 0.45 * (ventas / maxVentas) : 0.3;
+            return {
+              color: "#b45309",
+              weight: 1,
+              fillColor: `rgba(194, 65, 12, ${alpha.toFixed(2)})`,
+              fillOpacity: 1,
+            };
           }
-          return { color: "#d6d3d1", weight: 0.8, fillColor: "#f6f3f0", fillOpacity: 0.75 };
+          return { color: "#d6d3d1", weight: 1, fillColor: "#f6f6f4", fillOpacity: 0.6 };
         }
 
         geoLayer.setStyle(colorDeFeature);
@@ -114,15 +126,16 @@
           const el = layer.getElement && layer.getElement();
           if (el) el.dataset.ventasProvincia = n;
 
-          if (!ventasPorProvincia.has(n)) {
+          const ventas = ventasPorProvincia.get(n);
+          if (typeof ventas !== "number") {
             if (el) el.style.pointerEvents = "none";
             return;
           }
 
-          const texto = `${name} — ${Dash.formatearMoneda(ventasPorProvincia.get(n))}`;
+          const texto = `${name} — ${Dash.formatearMoneda(ventas)}`;
           if (seleccion && n === seleccion) layer.bringToFront();
           layer.bindTooltip(texto, {
-            permanent: false,
+            permanent: true,
             direction: "center",
             opacity: 1,
           });

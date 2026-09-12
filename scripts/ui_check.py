@@ -9,8 +9,9 @@ page with Playwright across desktop/tablet/mobile viewports and asserts:
   * the map initializes, tiles render (no gray tiles), 23 provinces are drawn
   * exactly one province is highlighted, fully visible, matching the API's top province
   * the legend badge shows that province
+  * only Excel provinces carry data: shaded by value and permanently labeled
+    with the amount; provinces without data stay as faint non-interactive outlines
   * clicking a province with sales shows its figure in the legend (one highlight)
-  * clicking a province without data does nothing (pointer-events none)
   * "Actualizar datos" re-renders without breaking the map
   * failure mode: with the API down, the map still renders provinces and the
     UI surfaces an error instead of going blank
@@ -213,7 +214,9 @@ def main():
             check(st["clientW"] > 100 and st["clientH"] > 100,
                   f"map container has real size ({st['clientW']}x{st['clientH']})")
             check(st["tiles"] > 0, f"base tiles rendered ({st['tiles']})")
-            check(st["grayTiles"] == 0, "no unloaded (gray) tiles")
+            check(wait_for(lambda: map_state(page)["grayTiles"] == 0, 10),
+                  "no unloaded (gray) tiles")
+            st = map_state(page)
             check(st["provincePaths"] >= 23, f"all provinces drawn ({st['provincePaths']})")
             check(st["highlightPaths"] == 1,
                   f"exactly one province highlighted ({st['highlightPaths']})")
@@ -282,6 +285,38 @@ def main():
                     "}"
                 )
 
+            data_provinces = page.evaluate(
+                "async () => { const r = await fetch('" + api
+                + "/analytics/ventas-por-provincia'); return (await r.json()).length; }"
+            )
+            check(data_provinces >= 1, f"API reports data provinces ({data_provinces})")
+
+            tooltip_count = page.evaluate(
+                "() => document.querySelectorAll('#mapa .leaflet-tooltip').length"
+            )
+            check(tooltip_count == data_provinces,
+                  f"one permanent label per Excel province ({tooltip_count}/{data_provinces})")
+
+            money_labels = page.evaluate(
+                "() => Array.from(document.querySelectorAll('#mapa .leaflet-tooltip'))"
+                ".some(t => (t.textContent || '').includes('$'))"
+            )
+            check(money_labels, "permanent labels include the amount ($)")
+
+            data_fill = page.evaluate(
+                "() => { const el = Array.from(document.querySelectorAll('#mapa path'))"
+                "  .find(p => p.dataset.ventasProvincia === 'santa fe');"
+                "  return el ? getComputedStyle(el).fill : ''; }"
+            )
+            check(data_fill.startswith("rgba(194, 65, 12"),
+                  f"Excel province shaded by value, not opaque accent ({data_fill})")
+
+            no_data_label = page.evaluate(
+                "() => Array.from(document.querySelectorAll('#mapa .leaflet-tooltip'))"
+                ".some(t => (t.textContent || '').includes('Pampa'))"
+            )
+            check(not no_data_label, "no-data province has no permanent label")
+
             mendoza = province_box(page, "mendoza")
             check(mendoza is not None and mendoza["inside"],
                   "data province (Mendoza) visible inside the map")
@@ -333,6 +368,10 @@ def main():
             check(st["highlightPaths"] == 0, "[api-down] no highlight (top province unknown)")
             check(st["legendError"], "[api-down] legend shows error state")
             check(st["alertVisible"], "[api-down] global API alert visible")
+            down_labels = down.evaluate(
+                "() => document.querySelectorAll('#mapa .leaflet-tooltip').length"
+            )
+            check(down_labels == 0, "[api-down] no permanent labels (no province data)")
             check(len(down_errors) == 0, f"[api-down] no console errors ({down_errors})")
             if shots_dir:
                 down.screenshot(path=str(shots_dir / "api-down.png"))
