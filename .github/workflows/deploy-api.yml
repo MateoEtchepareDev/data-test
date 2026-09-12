@@ -6,7 +6,6 @@ on:
     paths:
       - "services/api/**"
       - "packages/shared/**"
-      - "infra/**"
   workflow_dispatch:
 
 permissions:
@@ -25,9 +24,6 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Instalar SAM CLI
-        uses: aws-actions/setup-sam@v2
-
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
@@ -35,18 +31,16 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: us-east-1
 
-      - name: Preparar build dir
+      - name: Build package
         run: bash infra/build.sh
 
-      - name: SAM build
-        run: sam build --template infra/template.yaml
-
-      - name: SAM deploy
+      - name: Package zip
         run: |
-          sam deploy \
-            --stack-name dashboard-ventas-api \
-            --resolve-s3 \
-            --parameter-overrides SupabaseDbUrl="${{ secrets.SUPABASE_DB_URL }}" \
-            --no-confirm-changeset \
-            --capabilities CAPABILITY_IAM \
-            --region us-east-1
+          cd infra/build
+          zip -qr ../api-deploy.zip .
+          cd ..
+
+      - name: Update Lambda (dashboard-ventas-api-manual)
+        run: aws lambda update-function-code \
+          --function-name dashboard-ventas-api-manual \
+          --zip-file fileb://infra/api-deploy.zip
